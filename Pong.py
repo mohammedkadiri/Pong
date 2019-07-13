@@ -1,39 +1,96 @@
 
 import pygame
+import random
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 
-SCREEN_WIDTH = 700
-SCREEN_HEIGHT = 500
+SCREEN_WIDTH = 900
+SCREEN_HEIGHT = 600
 
 class Ball(pygame.sprite.Sprite):
     """ This class represents a simple ball class. """
 
-    def __init__(self, surface, color, center, width):
-        """ Create a new instance of a ball """
-        super().__init__()
-        self.surface = surface
-        self.color = color
-        self.center = center
-        self.width = width
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((10, 10))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.center = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self.dx = random.choice([-1, 1])
+        self.dy = random.choice([-2, -1, 1, 2])
 
-    def display(self):
-        pygame.draw.circle(self.surface, self.color, self.center, self.width)
+    def update(self):
+        self.rect.x += self.dx
+        self.rect.y += self.dy
+
+        # Constraints
+        if self.rect.top < 0:
+            self.dy *= -1
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.dy *= -1
 
 
-class Paddle:
+
+class Player1(pygame.sprite.Sprite):
     """ This class represents a simple paddle class. """
 
-    def __init__(self, surface, color, rect):
+    def __init__(self):
         """ Create a new instance of a paddle """
-        self.surface = surface
-        self.color = color
-        self.rect = rect
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((10, 100))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.left = 25
+        self.rect.centery = SCREEN_HEIGHT / 2
+        self.dy = 0
 
-    def display(self):
-        pygame.draw.rect(self.surface, self.color, self.rect)
+    def update(self):
+        self.dy = 0
+        # movement
+        keystate = pygame.key.get_pressed()
+        if keystate[pygame.K_w]:
+            self.dy = -3
+        if keystate[pygame.K_s]:
+            self.dy = 3
+        self.rect.y += self.dy
+
+        # Contraints -w
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.rect.bottom = SCREEN_HEIGHT
+
+
+class Player2(pygame.sprite.Sprite):
+    """ This class represents a simple paddle class. """
+
+    def __init__(self):
+        """ Create a new instance of a paddle """
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((10, 100))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.right = SCREEN_WIDTH - 25
+        self.rect.centery = SCREEN_HEIGHT / 2
+        self.dy = 0
+
+    def update(self):
+        self.dy = 0
+        # movement
+        keystate = pygame.key.get_pressed()
+        if keystate[pygame.K_UP]:
+            self.dy = -3
+        if keystate[pygame.K_DOWN]:
+            self.dy = 3
+        self.rect.y += self.dy
+
+        # Contraints -w
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.rect.bottom = SCREEN_HEIGHT
 
 
 class Game(object):
@@ -47,12 +104,17 @@ class Game(object):
         self.player_one = player_one
         self.player_two = player_two
         self.game_over = False
+        self.screen_rect = self.screen.get_rect()
 
-    def load(self):
-        self.ball.display()
-        self.player_one.display()
-        self.player_two.display()
-        pygame.draw.line(self.screen, RED, (SCREEN_WIDTH / 2, 40), (SCREEN_WIDTH / 2, SCREEN_HEIGHT - 40), 3)
+        # Create a list to add all sprites
+        self.all_sprites = pygame.sprite.Group()
+
+        # Create a list to add only the ball sprite
+        self.ball_sprite = pygame.sprite.GroupSingle()
+
+        self.all_sprites.add(self.player_one)
+        self.all_sprites.add(self.player_two)
+        self.ball_sprite.add(self.ball)
 
     def process_events(self):
 
@@ -64,14 +126,43 @@ class Game(object):
                     self.__init__()
         return False
 
-    def display_frame(self, screen):
-        screen.fill(BLACK)
-        self.load()
+    def run_logic(self):
+        if not self.game_over:
+            self.all_sprites.update()
+            self.ball_sprite.update()
+
+            # Collision with paddle
+            collision = pygame.sprite.spritecollideany(self.ball, self.all_sprites)
+            if collision:
+                if collision == self.player_one:
+                    self.ball.rect.x -= self.ball.dx
+                    self.ball.dx *= -1
+                    self.ball.dx += random.choice([0, 1])
+                if collision == self.player_two:
+                    self.ball.rect.x -= self.ball.dx
+                    self.ball.dx *= -1
+                    self.ball.dx += random.choice([0, 1])
+                if self.ball.dy == 0:
+                    self.ball.dy += random.choice([-1, 1])
+                if self.ball.dy <= 0:
+                    self.ball.dy += random.choice([-1, 0, 1])
+                if self.ball.dy >= 0:
+                    self.ball.dy += random.choice([-1, 0, 1])
+
+
+    def display_frame(self):
+        self.screen.fill(BLACK)
+        pygame.draw.line(self.screen, WHITE, (SCREEN_WIDTH / 2, 0), (SCREEN_WIDTH / 2, SCREEN_HEIGHT))
+        pygame.draw.circle(self.screen, RED, (SCREEN_WIDTH // 2,  SCREEN_HEIGHT // 2), 80, 1)
+        self.all_sprites.draw(self.screen)
+        self.ball_sprite.draw(self.screen)
         pygame.display.flip()
 
 def main():
 
+    # intiialize pygame and music
     pygame.init()
+    pygame.mixer.init()
 
     size = [SCREEN_WIDTH, SCREEN_HEIGHT]
     screen = pygame.display.set_mode(size)
@@ -81,19 +172,23 @@ def main():
 
     done = False
     clock = pygame.time.Clock()
+    fps = 120
 
-    ball = Ball(screen, WHITE, [int(SCREEN_WIDTH / 2), 20], 10)
-    player_one = Paddle(screen, WHITE, [20, SCREEN_HEIGHT / 2 - 150, 10, 150])
-    player_two = Paddle(screen, WHITE, [SCREEN_WIDTH - 30, SCREEN_HEIGHT / 2 - 150, 10, 150])
+    player_one = Player1()
+    player_two = Player2()
+    ball = Ball()
+
     game = Game(screen, ball, player_one, player_two)
 
     while not done:
 
         done = game.process_events()
 
-        game.display_frame(screen)
+        game.run_logic()
 
-        clock.tick(20)
+        game.display_frame()
+
+        clock.tick(fps)
 
     pygame.quit()
 
