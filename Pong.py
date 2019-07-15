@@ -31,6 +31,27 @@ class Ball(pygame.sprite.Sprite):
         if self.rect.bottom > SCREEN_HEIGHT:
             self.dy *= -1
 
+class Score():
+    def __init__(self, ball, screen):
+        self.screen = screen
+        self.ball = ball
+        self.score_one = 0
+        self.score_two = 0
+        self.score_font = pygame.font.SysFont(None, 100)
+
+    def update(self):
+        if self.ball.rect.right < 0:
+            self.score_two += 1
+            self.ball.__init__()
+        if self.ball.rect.left > SCREEN_WIDTH:
+            self.score_one += 1
+            self.ball.__init__()
+        self.player_one_score = self.score_font.render(str(self.score_one), True, WHITE, BLACK)
+        self.player_two_score = self.score_font.render(str(self.score_two), True, WHITE, BLACK)
+
+    def draw(self):
+        self.screen.blit(self.player_one_score, (SCREEN_WIDTH / 4, SCREEN_HEIGHT / 8))
+        self.screen.blit(self.player_two_score, (SCREEN_WIDTH * 3 / 4, SCREEN_HEIGHT / 8))
 
 
 class Player1(pygame.sprite.Sprite):
@@ -98,13 +119,14 @@ class Game(object):
     reset the game we'd just need to create a new instance of this
     class. """
 
-    def __init__(self, screen, ball, player_one, player_two):
+    def __init__(self, screen, ball, player_one, player_two, score):
         self.screen = screen
         self.ball = ball
         self.player_one = player_one
         self.player_two = player_two
         self.game_over = False
         self.screen_rect = self.screen.get_rect()
+        self.score = score
 
         # Create a list to add all sprites
         self.all_sprites = pygame.sprite.Group()
@@ -130,6 +152,7 @@ class Game(object):
         if not self.game_over:
             self.all_sprites.update()
             self.ball_sprite.update()
+            self.score.update()
 
             # Collision with paddle
             collision = pygame.sprite.spritecollideany(self.ball, self.all_sprites)
@@ -156,6 +179,7 @@ class Game(object):
         pygame.draw.circle(self.screen, RED, (SCREEN_WIDTH // 2,  SCREEN_HEIGHT // 2), 80, 1)
         self.all_sprites.draw(self.screen)
         self.ball_sprite.draw(self.screen)
+        self.score.draw()
         pygame.display.flip()
 
 def main():
@@ -177,8 +201,9 @@ def main():
     player_one = Player1()
     player_two = Player2()
     ball = Ball()
+    score = Score(ball, screen)
 
-    game = Game(screen, ball, player_one, player_two)
+    game = Game(screen, ball, player_one, player_two, score)
 
     while not done:
 
